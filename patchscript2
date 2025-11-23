@@ -1,0 +1,37 @@
+#!/bin/sh
+
+GAMEDIR="$PWD"
+LOGFILE="$GAMEDIR/patchlog.txt"
+
+# Redireciona tudo para o log para você acompanhar se der erro
+exec > "$LOGFILE" 2>&1
+
+echo "Iniciando extracao simplificada para CrossMix OS..."
+
+# 1. Extrair OBB (Dados do jogo)
+echo "Extraindo OBB..."
+mkdir -p "$GAMEDIR/gamedata"
+unzip -o "$GAMEDIR"/*.obb -d "$GAMEDIR/gamedata"
+
+# 2. Extrair APK (Libs e Assets)
+echo "Extraindo APK..."
+mkdir -p "$GAMEDIR/.apktemp"
+unzip -o "$GAMEDIR"/*.apk -d "$GAMEDIR/.apktemp"
+
+# 3. Mover as bibliotecas ARM64 (CRUCIAL para o jogo abrir)
+echo "Movendo bibliotecas..."
+# Tenta copiar do local padrão. O '*' garante que pegue os arquivos .so
+cp -r "$GAMEDIR/.apktemp/lib/arm64-v8a/"* "$GAMEDIR/" || echo "Aviso: Nenhuma lib encontrada ou erro ao mover."
+
+# 4. Mover os arquivos de Assets (onde costuma ficar a tradução/dados extras)
+echo "Movendo assets..."
+cp -r "$GAMEDIR/.apktemp/assets/"* "$GAMEDIR/gamedata/" || echo "Aviso: Pasta assets não encontrada."
+
+# 5. Limpeza
+echo "Limpando temporarios..."
+rm -rf "$GAMEDIR/.apktemp"
+# Opcional: Remove os arquivos originais para economizar espaço (descomente se quiser)
+# rm "$GAMEDIR"/*.obb
+# rm "$GAMEDIR"/*.apk
+
+echo "Concluido com sucesso!"
