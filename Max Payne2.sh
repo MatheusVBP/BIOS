@@ -31,57 +31,38 @@ export SDL_AUDIODRIVER=alsa
 export PULSE_SERVER=null
 # ==============================================================================
 
-# >>>> LÓGICA DE EXTRAÇÃO (CORRIGIDA: SEM SUDO) <<<<
-if [ ! -d "$GAMEDIR/gamedata" ]; then
-    if ls "$GAMEDIR"/*.obb 1> /dev/null 2>&1; then
-        pm_message "Extraindo arquivos... Aguarde!"
-        
-        # Cria a pasta
-        mkdir -p "$GAMEDIR/gamedata"
-        
-        # Cria um log para vermos se der erro
-        echo "Iniciando extração..." > "$GAMEDIR/log_install.txt"
-        
-        # Tenta extrair OBB e APK sem usar SUDO (pois é no SD Card)
-        # Redireciona erros para o arquivo de log
-        unzip -o "$GAMEDIR"/*.obb -d "$GAMEDIR/gamedata" >> "$GAMEDIR/log_install.txt" 2>&1
-        unzip -o "$GAMEDIR"/*.apk -d "$GAMEDIR/gamedata" >> "$GAMEDIR/log_install.txt" 2>&1
-        
-        # Move arquivos se estiverem dentro de subpastas comuns (assets)
-        if [ -d "$GAMEDIR/gamedata/assets" ]; then
-            mv "$GAMEDIR/gamedata/assets/"* "$GAMEDIR/gamedata/" >> "$GAMEDIR/log_install.txt" 2>&1
-        fi
-        
-        pm_message "Extração concluída!"
-    else
-        pm_message "ERRO: APK/OBB não encontrados!"
-        sleep 5
-        exit 1
-    fi
+# >>>> MODO DEBUG (DEDO-DURO) <<<<
+# Tudo o que acontecer vai ser escrito no arquivo erro.txt
+exec > "$GAMEDIR/erro.txt" 2>&1
+
+echo "--- INICIO DO LOG ---"
+echo "Data: $(date)"
+
+# 1. Verifica se os arquivos existem
+echo "Checando arquivos..."
+if [ -f "./libMaxPayne.so" ]; then
+    echo "libMaxPayne.so ENCONTRADO."
+else
+    echo "ERRO: libMaxPayne.so NAO ENCONTRADO."
 fi
 
-# Configurações do Joystick para o Launcher
-$GPTOKEYB "love" &
-launcherGPTOKEYBPid=$!
+if [ -d "./gamedata" ]; then
+    echo "Pasta gamedata ENCONTRADA."
+else
+    echo "ERRO: Pasta gamedata NAO ENCONTRADA."
+fi
 
-# >>>> FUNÇÃO PARA INICIAR O JOGO <<<<
-function start_maxpayne {
-  # Mata o controle do launcher
-  $ESUDO kill -9 $launcherGPTOKEYBPid
-  
-  # Inicia o controle do Jogo
-  $GPTOKEYB "maxpayne_arm64" & 
-  pm_platform_helper "$GAMEDIR/maxpayne_arm64"
+# 2. Garante permissão de execução
+chmod +x ./maxpayne_arm64
+chmod 777 ./libMaxPayne.so
 
-  # Limpa a tela
-  printf "\033c"
-  
-  # Roda o jogo (Silencioso)
-  ./maxpayne_arm64 > /dev/null 2>&1
-}
+# 3. Inicia o jogo direto (sem launcher, para testar)
+echo "Iniciando binario..."
 
-# >>>> INICIA O LAUNCHER DO LOVE <<<<
-source $controlfolder/runtimes/"love_11.5"/love.txt
-$LOVE_RUN "$GAMEDIR/launcher.love" && start_maxpayne
+$GPTOKEYB "maxpayne_arm64" & 
+pm_platform_helper "$GAMEDIR/maxpayne_arm64"
 
+./maxpayne_arm64
+
+echo "--- FIM DO LOG (Codigo de saida: $?) ---"
 pm_finish
